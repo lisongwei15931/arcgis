@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Intro to SceneView - Create a 3D map</title>
+<style>
+  html, body, #viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/css/main.css">
+<script src="https://js.arcgis.com/4.5/"></script>
+<script>
+require([
+  "esri/Map",
+  "esri/views/SceneView",
+  "esri/layers/GraphicsLayer",
+  "esri/Graphic",
+  "esri/config",
+  "dojo/domReady!"
+], function(Map, SceneView, GraphicsLayer, Graphic, esriConfig){
+  esriConfig.request.corsEnabledServers.push("developers.arcgis.com");
+  var map = new Map({
+    basemap: "satellite",
+    ground: "world-elevation"
+  });
+  var view = new SceneView({
+    container: "viewDiv",     // Reference to the scene div created in step 5
+    map: map,                 // Reference to the map object created before the scene
+    scale: 50000000,          // Sets the initial scale to 1:50,000,000
+    center: [118.796673,32.071813]  // Sets the center point of view with lon/lat
+  });
+  var satelliteLayer = new GraphicsLayer();
+  map.addMany([satelliteLayer]);
+  var template = { // autocasts as new PopupTemplate()
+    title: "{name}",
+    content: "Launch number {number} of {year}",
+    actions: [{ // Create a popup action to display the satellite track.
+      title: "Show Satellite Track",
+      id: "track",
+      className: "esri-icon-globe"
+    }]
+  };
+  var satelliteLoc = {
+          type: "point", // Autocasts as new Point()
+          x: 118.796673,
+          y: 32.071813,
+          z: 600000
+        };
+  var graphic = new Graphic({
+  geometry: satelliteLoc,
+  symbol: {
+    type: "picture-marker", // autocasts as new PictureMarkerSymbol()
+    url: "https://developers.arcgis.com/javascript/latest/sample-code/satellites-3d/live/satellite.png",
+    width: 48,
+    height: 48
+  },
+  attributes: {
+    name: "123456789",
+  },
+  popupTemplate: template
+});
+
+satelliteLayer.add(graphic);
+
+var satelliteLoc1 = {
+          type: "point", // Autocasts as new Point()
+          x: 110.796673,
+          y: 33.071813,
+          z: 600000
+        };
+  var graphic1 = new Graphic({
+  geometry: satelliteLoc1,
+  symbol: {
+    type: "picture-marker", // autocasts as new PictureMarkerSymbol()
+    url: "https://developers.arcgis.com/javascript/latest/sample-code/satellites-3d/live/satellite.png",
+    width: 48,
+    height: 48
+  },
+  attributes: {
+    name: "123456789",
+  },
+  popupTemplate: template
+});
+
+satelliteLayer.add(graphic1);
+
+polyline = {
+  type: "polyline", // autocasts as new Polyline()
+  paths: [
+    [118.796673,32.071813, 0],
+    [118.796673,32.071813, 600000]
+  ]
+};
+
+lineSymbol = {
+  type: "simple-line", // autocasts as SimpleLineSymbol()
+  color: [226, 119, 40],
+  width: 2
+};
+
+var polylineGraphic = new Graphic({
+  geometry: polyline,
+  symbol: lineSymbol
+});
+
+satelliteLayer.add(polylineGraphic);
+
+var polyline1 = {
+  type: "polyline", // autocasts as new Polyline()
+  paths: init_dot_line([110.796673,33.071813, 600000],[118.796673,32.071813, 0])
+};
+
+lineSymbol1 = {
+  type: "simple-line", // autocasts as SimpleLineSymbol()
+  color: [226, 119, 40],
+  width: 2
+};
+
+var polylineGraphic1 = new Graphic({
+  geometry: polyline1,
+  symbol: lineSymbol1
+});
+
+satelliteLayer.add(polylineGraphic1);
+
+});
+function init_dot_line(start_point,end_point){
+	var path = [start_point,];
+	x_min = (end_point[0] - start_point[0])/10;
+	y_min = (end_point[1] - start_point[1])/10;
+	z_min = (end_point[2] - start_point[2])/10;
+	var one_point = start_point;
+	for (var i=0;i<8;i++)
+	{
+		one_point = [one_point[0]+x_min,one_point[1]+y_min,one_point[2]+z_min];
+		path.push(one_point);
+		if (one_point[2] == 0){
+			break;
+		} 
+	};
+	path.push(end_point);
+	var real_path = [];
+	for(var j=0;j<path.length;j=j+2){
+		console.log(path[j])
+		real_path.push([path[j],path[j+1]]);
+		console.log(real_path);
+	};
+	return real_path;
+};
+</script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
