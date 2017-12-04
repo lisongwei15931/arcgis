@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Intro to SceneView - Create a 3D map</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/css/main.css">
+<style>
+  html, body, #viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+  }
+  .docking-control {
+    display: none;
+    font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    position: absolute;
+    z-index: 10;
+    top: 50%;
+    left: 50%;
+    width: 250px;
+    height: 80px;
+    padding: 10px;
+    box-sizing: border-box;
+    margin: -40px 0 0 -125px;
+    background-color: #fff;
+    color: #323232;
+    text-align: center;
+    -webkit-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.esri-popup__feature-buttons{
+  display: none;
+}
+.esri-popup__button .esri-icon-close{
+  display: none;
+}
+.esri-popup__button{
+    background-image: url(http://p04gycm6e.bkt.clouddn.com/%E5%85%B3%E9%97%AD.png);
+    background-repeat: no-repeat;
+    background-position: 0px 0px;
+    height: 44px;
+    width: 60px;
+    margin: 17px 15px 10px 10px;
+}
+.esri-popup__button_bak{
+    background-image: url(http://p04gycm6e.bkt.clouddn.com/%E5%85%B3%E9%97%AD.png);
+    background-repeat: no-repeat;
+    background-position: 0px 0px;
+    height: 44px;
+    width: 60px;
+    margin: 10px 8px 10px 10px;
+}
+.esri-view-width-xlarge .esri-popup__main-container {
+    width: 300px;
+}
+.esri-popup__main-container{
+  background-image: url(http://p04gycm6e.bkt.clouddn.com/%E6%A1%864.png);
+  background-size:100% 100%;
+  background-color: rgba(0,0,0,0);
+  color:white;
+}
+.esri-popup__main-container-bak{
+  background-image: url(http://p04gycm6e.bkt.clouddn.com/%E6%A1%866.png);
+  background-size:100% 100%;
+  background-color: rgba(0,0,0,0);
+  color:white;
+}
+
+.esri-popup-renderer{
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.esri-popup--feature-updated .esri-popup__header-title{
+  padding-left: 33px;
+  padding-top: 24px;
+}
+.esri-popup__content{
+  margin: 0 15px 32px;
+}
+.esri-popup--shadow {
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0);
+}
+.stitle{
+  color: rgb(47, 209, 250);
+  font-weight: bold;
+  font-size: 15px;
+}
+.scontent{
+  color:white;
+}
+
+#wai{
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+  }
+  #bottom_dock{
+    background-image: url(http://p04gycm6e.bkt.clouddn.com/%E6%A1%865.png);
+    background-size:100% 100%;
+    background-color: rgba(0,0,0,0);
+    color:white;
+    margin: 0 auto;  
+    z-index: 10;
+    width:1265px;
+    height: 131px;
+  }
+  #bottom_buttons{
+    height: 100%;
+    padding: 60px 112px;
+  }
+  .bottom_button{
+    float:left;
+    margin-right: 56px;
+  }
+  .button_icon{
+    padding-left: 28%;
+  }
+  .bottom_button a{
+    text-decoration:none; 
+    color:white;
+  }
+</style>
+
+
+<script src="https://js.arcgis.com/4.5/"></script>
+<script>
+require([
+  "esri/Map",
+  "esri/Camera",
+  "esri/geometry/Polyline",
+  "esri/geometry/Point",
+  "esri/views/SceneView",
+  "esri/layers/GraphicsLayer",
+  "esri/layers/FeatureLayer",
+  "esri/layers/CSVLayer",
+  "esri/Graphic",
+  "esri/config",
+  "dojo/on",
+  "dojo/domReady!"
+], function(Map,Camera, Polyline, Point, SceneView, GraphicsLayer, FeatureLayer, CSVLayer, Graphic, esriConfig, on){;
+  esriConfig.request.corsEnabledServers.push("p04gycm6e.bkt.clouddn.com");
+  map = new Map({
+    basemap: "satellite",
+    ground: "world-elevation"
+  });
+  var view = new SceneView({
+    qualityProfile: "high",
+    container: "viewDiv",     // Reference to the scene div created in step 5
+    map: map,                 // Reference to the map object created before the scene
+    scale: 10000000,          // Sets the initial scale to 1:50,000,000
+    center: [118.796673,32.071813],  // Sets the center point of view with lon/lat
+    popup: {
+      dockEnabled: true,
+      dockOptions: {
+        breakpoint: false,
+        buttonEnabled: false,
+        position: "top-right",
+      }
+    }
+  });
+  view.constraints = {
+    minScale: 500000,  // User cannot zoom out beyond a scale of 1:500,000
+    maxScale: 0,  // User can overzoom tiles
+    rotationEnabled: false  // Disables map rotation
+  };
+  var cam = new Camera({
+    heading: 0, // face due east
+    tilt: 40, // looking from a bird's eye view
+    position: {
+      latitude: 20.071813,
+      longitude: 113.796673,
+      z: 1800000,
+      spatialReference: { wkid: 3857 }
+    }
+  });
+  view.camera = cam;
+  view.ui.empty("top-left");
+  view.on("click", function(event){
+    view.hitTest(event).then(getGraphics);
+  });
+  function getGraphics(response) {
+    var graphic = response.results[0].graphic;
+    console.log(graphic == null);
+    if(graphic == null){
+      view.popup.set("dockOptions", {
+        breakpoint: false,
+        buttonEnabled: false,
+        position: "top-left"
+      });
+    }
+    if(contains([1,2], graphic.attributes.id)){
+      view.popup.set("dockOptions", {
+        breakpoint: false,
+        buttonEnabled: false,
+        position: "top-right"
+      });
+    }
+    if(contains([5,6], graphic.attributes.id)){
+      view.popup.set("dockOptions", {
+        breakpoint: false,
+        buttonEnabled: false,
+        position: "bottom-left"
+      });
+    }    
+  }
+
+  satelliteLayer = new GraphicsLayer();
+  
+  var template = { // autocasts as new PopupTemplate()
+    title: "<img src='http://p04gycm6e.bkt.clouddn.com/icon9.png'/>{name}",
+    content: "<div>\
+            <span class='stitle'>运行状态：</span><span class='scontent'>{status}</span></br>\
+            <span class='stitle'>观测类型：</span><span class='scontent'>{type}</span></br>\
+            <span class='stitle'>获取文件数：</span><span class='scontent'>{files}</span></br>\
+            <span class='stitle'>通讯方式：</span><span class='scontent'>{communicate_type}</span></br>\
+            <span class='stitle'>风速：</span><span class='scontent'>{wind_speed}</span></br>\
+            <span class='stitle'>海量：</span><span class='scontent'>{hailiang}</span></br>\
+            <span class='stitle'>湍流：</span><span class='scontent'>{tuanliu}</span>\
+            </div>",
+  };
+  var template_text = { // autocasts as new PopupTemplate()
+    title: "{name}",
+    content: "<div>\
+            <span class='stitle'>运行状态：</span><span class='scontent'>{status}</span></br>\
+            <span class='stitle'>上行文件总数：</span><span class='scontent'>{files}</span></br>\
+            <span class='stitle'>接收文件总数：</span><span class='scontent'>{guance}</span></br>\
+            <span class='stitle'>入库总数：</span><span class='scontent'>{ruku}</span></br>\
+            </div>",
+  };
+
+  var template_line = { // autocasts as new PopupTemplate()
+    title: "<img src='http://p04gycm6e.bkt.clouddn.com/icon9.png'/>{name}",
+    content: "<div>\
+            <span class='stitle'>gps文件数：</span><span class='scontent'>{gps}</span></br>\
+            <span class='stitle'>雷达文件数：</span><span class='scontent'>{leida}</span></br>\
+            <span class='stitle'>志愿船文件数：</span><span class='scontent'>{zhiyuan}</span></br>\
+            <span class='stitle'>浮标文件数：</span><span class='scontent'>{fubiao}</span></br>\
+            <span class='stitle'>海洋站文件数：</span><span class='scontent'>{haiyang}</span></br>\
+            </div>",
+  };
+  satelliteLoc = {
+          type: "point", // Autocasts as new Point()
+          x: 118.796673,
+          y: 32.071813,
+          z: 600000
+        };
+  graphic = new Graphic({
+    geometry: satelliteLoc,
+    symbol: {
+      type: "picture-marker", // autocasts as new PictureMarkerSymbol()
+      url: "http://p04gycm6e.bkt.clouddn.com/%E5%8D%AB%E6%98%9F1.png",
+      width: 48,
+      height: 48
+    },
+    attributes: {
+      id:1,
+      name: "卫星1号",
+      status: "运行正常",
+      files: "2958",
+      type: "志愿船",
+      communicate_type: "CDMA",
+      wind_speed: "3.5",
+      hailiang: "1.8",
+      tuanliu: "4.3",
+    },
+    popupTemplate: template
+  });
+
+satelliteLayer.add(graphic);
+
+satelliteLoc1 = new Point({
+          type: "point", // Autocasts as new Point()
+          x: 110.796673,
+          y: 33.071813,
+          z: 600000
+        });
+
+graphic1 = new Graphic({
+  geometry: satelliteLoc1,
+  symbol: {
+    type: "picture-marker", // autocasts as new PictureMarkerSymbol()
+    url: "http://p04gycm6e.bkt.clouddn.com/%E5%8D%AB%E6%98%9F2.png",
+    width: 48,
+    height: 48
+  },
+  attributes: {
+      id:2,
+      name: "卫星2号",
+      status: "运行正常",
+      files: "3456",
+      type: "志愿船1",
+      communicate_type: "WCDMA",
+      wind_speed: "9.5",
+      hailiang: "2.5",
+      tuanliu: "9.9",
+    },
+  popupTemplate: template
+});
+
+satelliteLayer.add(graphic1);
+
+polyline = new Polyline( {
+  type: "polyline", // autocasts as new Polyline()
+  paths: [
+    [118.796673,32.071813, 0],
+    [118.796673,32.071813, 600000]
+  ]
+});
+
+var lineSymbol = {
+  type: "simple-line", // autocasts as SimpleLineSymbol()
+  color: [123, 242, 62],
+  width: 2
+};
+
+var polylineGraphic = new Graphic({
+  geometry: polyline,
+  symbol: lineSymbol,
+  attributes: {
+      id:5,
+      name: "传输1",
+      gps: 124,
+      leida:16235,
+      zhiyuan:35235,
+      fubiao:236,
+      haiyang:1241
+    },
+  popupTemplate: template_line
+});
+
+satelliteLayer.add(polylineGraphic);
+
+var polyline1 = {
+  type: "polyline", // autocasts as new Polyline()
+  paths: init_dot_line([110.796673,33.071813, 600000],[118.796673,32.071813, 0])
+};
+
+
+var polylineGraphic1 = new Graphic({
+  geometry: polyline1,
+  symbol: lineSymbol,
+  attributes: {
+      id:6,
+      name: "传输2",
+      gps: 152,
+      leida:152215,
+      zhiyuan:125,
+      fubiao:152,
+      haiyang:66
+    },
+  popupTemplate: template_line
+});
+
+satelliteLayer.add(polylineGraphic1);
+
+nanjing = new Point({
+          type: "point", // Autocasts as new Point()
+          x: 118.796673,
+          y: 32.071813,
+        });
+var textSymbol = {
+  type: "text",  // autocasts as new TextSymbol()
+  color: "white",
+  haloColor: "black",
+  haloSize: "1px",
+  text: "南京",
+  xoffset: 3,
+  yoffset: 3,
+  font: {  // autocast as new Font()
+    size: 12,
+    family: "sans-serif",
+    weight: "bolder"
+  }
+};
+
+graphic_nanjing = new Graphic({
+  geometry: nanjing,
+  symbol: textSymbol,
+  attributes: {
+      id:3,
+      name: "南京中心",
+      status: "运行正常",
+      files: "152",
+      guancezhan: "12515",
+      ruku: "999",
+    },
+  popupTemplate: template_text
+});
+// satelliteLayer.add(graphic_nanjing);
+
+var beijing = new Point({
+          type: "point", // Autocasts as new Point()
+          x: 116.453963,
+          y: 39.915125,
+        });
+var textSymbol_beijing = {
+  type: "text",  // autocasts as new TextSymbol()
+  color: "white",
+  haloColor: "black",
+  haloSize: "1px",
+  text: "北京",
+  xoffset: 0,
+  yoffset: 0,
+  font: {  // autocast as new Font()
+    size: 10,
+    family: "sans-serif",
+    weight: "bolder"
+  }
+};
+
+graphic_beijing= new Graphic({
+  geometry: beijing,
+  symbol: textSymbol_beijing,
+  attributes: {
+      id:4,
+      name: "北京中心",
+      status: "运行正常",
+      files: "3456",
+      guancezhan: "1598",
+      ruku: "999",
+    },
+  popupTemplate: template_text
+});
+// satelliteLayer.add(graphic_beijing);
+
+
+var polyline_b_to_n = {
+  type: "polyline", // autocasts as new Polyline()
+  paths: [
+    [116.403963,39.915125],
+    [118.796673,32.071813]
+  ],
+  hasM:false ,
+  hasZ:false ,
+};
+
+
+var polylineGraphic_b_to_n = new Graphic({
+  geometry: polyline_b_to_n,
+  symbol: lineSymbol,
+  attributes: {
+      id:7,
+      name: "传输3",
+      gps: 152,
+      leida:152,
+      zhiyuan:125,
+      fubiao:125,
+      haiyang:125
+    },
+});
+
+satelliteLayer.add(polylineGraphic_b_to_n);
+
+var nanjing_point = new Point({
+  type: "point", // Autocasts as new Point()
+  x: 118.796673,
+  y: 32.071813,
+});
+var beijing_point = new Point({
+  type: "point", // Autocasts as new Point()
+  x: 116.403963,
+  y: 39.915125,
+});
+
+markerSymbol = {
+  type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+  color: [226, 119, 40],
+  outline: { // autocasts as new SimpleLineSymbol()
+    color: [255, 255, 255],
+    width: 2
+  }
+};
+
+var nanjingpointGraphic = new Graphic({
+  geometry: nanjing_point,
+  symbol: markerSymbol
+});
+var polylineAtt = {
+  Name: "Keystone Pipeline",
+  Owner: "TransCanada"
+};
+var beijingpointGraphic = new Graphic({
+  geometry: beijing_point,
+  symbol: markerSymbol,
+  attributes: polylineAtt
+});
+// satelliteLayer.add(nanjingpointGraphic);
+// satelliteLayer.add(beijingpointGraphic);
+
+var csvLayer = new CSVLayer({
+        url: "http://p04gycm6e.bkt.clouddn.com/arcgis13.csv",
+        copyright: "USGS Earthquakes",
+        popupTemplate: template_text,
+        elevationInfo: {
+          // drapes icons on the surface of the globe
+          mode: "on-the-ground"
+        },
+        labelingInfo: [{
+          // When using callouts on labels, "above-center" is the only allowed position
+          labelPlacement: "above-center",
+          labelExpressionInfo: {
+            value: "{NAME}"
+          },
+          symbol: {
+            type: "label-3d", // autocasts as new LabelSymbol3D()
+            symbolLayers: [{
+              type: "text", // autocasts as new TextSymbol3DLayer()
+              material: {
+                color: "black"
+              },
+              halo: {
+                color: [255, 255, 255, 0.7],
+                size: 2
+              },
+              size: 10
+            }],
+            // Labels need a small vertical offset that will be used by the callout
+            verticalOffset: {
+              screenLength: 150,
+              maxWorldLength: 2000,
+              minWorldLength: 30
+            },
+          }
+        }],
+        labelsVisible: true
+      });
+
+      csvLayer.renderer = {
+        type: "simple", // autocasts as new SimpleRenderer()
+        symbol: {
+          type: "point-3d", // autocasts as new PointSymbol3D()
+          symbolLayers: [{
+            type: "icon", // autocasts as new IconSymbol3DLayer()
+            material: {
+              color: [238, 69, 0, 0.75]
+            },
+            outline: {
+              width: 0.5,
+              color: "white"
+            },
+            size: "22px"
+          }]
+        }
+      };
+
+
+map.addMany([csvLayer, satelliteLayer]);
+});
+function init_dot_line(start_point,end_point){
+	var path = [start_point,];
+	x_min = (end_point[0] - start_point[0])/10;
+	y_min = (end_point[1] - start_point[1])/10;
+	z_min = (end_point[2] - start_point[2])/10;
+	var one_point = start_point;
+	for (var i=0;i<8;i++)
+	{
+		one_point = [one_point[0]+x_min,one_point[1]+y_min,one_point[2]+z_min];
+		path.push(one_point);
+		if (one_point[2] == 0){
+			break;
+		} 
+	};
+	path.push(end_point);
+	var real_path = [];
+	for(var j=0;j<path.length;j=j+2){
+		console.log(path[j])
+		real_path.push([path[j],path[j+1]]);
+		console.log(real_path);
+	};
+	return real_path;
+};
+function contains(arr, obj) {  
+    var i = arr.length;  
+    while (i--) {  
+        if (arr[i] === obj) {  
+            return true;  
+        }  
+    }  
+    return false;  
+};
+</script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <div id="wai">
+      <div id="bottom_dock">
+        <div id="bottom_buttons">
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon2.png"><br/>
+            <span>报文服务器</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon3.png"><br/>
+            <span>地面小站</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon1.png"><br/>
+            <span>自动气象站</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon4.png"><br/>
+            <span>卫星云图</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon5.png"><br/>
+            <span>多普勒雷达</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon6.png"><br/>
+            <span>Micaps数据</span>
+            </a>
+          </div>
+          <div class="bottom_button">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon7.png"><br/>
+            <span>数值模式产品</span>
+            </a>
+          </div>
+          <div class="bottom_button" style="margin-right: 0px">
+            <a href="#">
+            <img class="button_icon" src="http://p04gycm6e.bkt.clouddn.com/icon8.png"><br/>
+            <span>数值模式产品</span>
+            </a>
+          </div>
+        </div>
+      </div>
+  </div>
+</body>
+</html>
+
+
